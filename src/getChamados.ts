@@ -1,6 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import dotenv from "dotenv";
+import { ClassificacaoChamado, classificarChamado } from "./classificacaoChamado";
 
 dotenv.config();
 
@@ -11,9 +12,11 @@ type Chamado = {
     data: string;
     link: string;
     descricao: string;
+    classificacao: ClassificacaoChamado;
 };
 
-type ChamadoSemDescricao = Omit<Chamado, "descricao">;
+type ChamadoSemDescricao = Omit<Chamado, "descricao" | "classificacao">;
+type ChamadoComDescricao = Omit<Chamado, "classificacao">;
 
 const BASE_URL = "https://chamados.tsiconsultores.com.br";
 
@@ -62,8 +65,8 @@ async function coletarDescricaoChamado(link: string): Promise<string> {
     );
 }
 
-async function adicionarDescricoesAosChamados(chamados: ChamadoSemDescricao[]): Promise<Chamado[]> {
-    const chamadosComDescricao: Chamado[] = new Array(chamados.length);
+async function adicionarDescricoesAosChamados(chamados: ChamadoSemDescricao[]): Promise<ChamadoComDescricao[]> {
+    const chamadosComDescricao: ChamadoComDescricao[] = new Array(chamados.length);
     let proximoIndice = 0;
 
     async function trabalhador(): Promise<void> {
@@ -145,7 +148,12 @@ async function coletarChamadosAguardandoOperador(): Promise<Chamado[]> {
         });
     });
 
-    return adicionarDescricoesAosChamados(chamados);
+    const chamadosComDescricao = await adicionarDescricoesAosChamados(chamados);
+
+    return chamadosComDescricao.map((chamado) => ({
+        ...chamado,
+        classificacao: classificarChamado(chamado)
+    }));
 }
 
 async function main() {
@@ -154,6 +162,21 @@ async function main() {
 
         console.log(`Chamados encontrados: ${chamados.length}`);
         console.table(chamados);
+
+        const chamadosPossiveisExclusao = chamados.filter(
+            (chamado) => chamado.classificacao.possivelExclusaoDocumentos
+        );
+
+        console.log(`Possiveis chamados de exclusao de documentos: ${chamadosPossiveisExclusao.length}`);
+        console.table(
+            chamadosPossiveisExclusao.map((chamado) => ({
+                id: chamado.id,
+                titulo: chamado.titulo,
+                pontuacao: chamado.classificacao.pontuacao,
+                palavrasEncontradas: chamado.classificacao.palavrasEncontradas.join(", "),
+                link: chamado.link
+            }))
+        );
     } catch (error) {
         console.error("Erro ao coletar chamados:");
 

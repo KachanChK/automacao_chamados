@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/getChamados.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/getChamados.ts",
+    "test": "ts-node src/classificacaoChamado.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
